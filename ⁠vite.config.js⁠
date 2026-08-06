@@ -32,9 +32,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-      }
-    })
-  ],
-  base: '/CHIYAO/'
+        export default defineConfig({
+  plugins: [react()],
+  base: '/chiyao/' // 必须改成纯小写！
 });
