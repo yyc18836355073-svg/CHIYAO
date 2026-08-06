@@ -24,38 +24,22 @@ const createInitialLogs = () => {
 
 export default function App() {
   const [startDate, setStartDate] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEYS.START_DATE) || new Date().toISOString().split('T')[0];
-    } catch {
-      return new Date().toISOString().split('T')[0];
-    }
+    return localStorage.getItem(STORAGE_KEYS.START_DATE) || new Date().toISOString().split('T')[0];
   });
 
   const [logs, setLogs] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.LOGS);
-      return saved ? JSON.parse(saved) : createInitialLogs();
-    } catch {
-      return createInitialLogs();
-    }
+    const saved = localStorage.getItem(STORAGE_KEYS.LOGS);
+    return saved ? JSON.parse(saved) : createInitialLogs();
   });
 
   const [lastMorningTs, setLastMorningTs] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.LAST_MORNING);
-      return saved ? parseInt(saved, 10) || 0 : 0;
-    } catch {
-      return 0;
-    }
+    const saved = localStorage.getItem(STORAGE_KEYS.LAST_MORNING);
+    return saved ? parseInt(saved, 10) : 0;
   });
 
   const [activeTimer, setActiveTimer] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_TIMER);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
+    const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_TIMER);
+    return saved ? JSON.parse(saved) : null;
   });
 
   const [currentPeriod, setCurrentPeriod] = useState('morning');
@@ -91,31 +75,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.START_DATE, startDate);
-    } catch {}
+    localStorage.setItem(STORAGE_KEYS.START_DATE, startDate);
   }, [startDate]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
-    } catch {}
+    localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
   }, [logs]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.LAST_MORNING, lastMorningTs.toString());
-    } catch {}
+    localStorage.setItem(STORAGE_KEYS.LAST_MORNING, lastMorningTs.toString());
   }, [lastMorningTs]);
 
   useEffect(() => {
-    try {
-      if (activeTimer) {
-        localStorage.setItem(STORAGE_KEYS.ACTIVE_TIMER, JSON.stringify(activeTimer));
-      } else {
-        localStorage.removeItem(STORAGE_KEYS.ACTIVE_TIMER);
-      }
-    } catch {}
+    if (activeTimer) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_TIMER, JSON.stringify(activeTimer));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_TIMER);
+    }
   }, [activeTimer]);
 
   const calculateCurrentDayNum = () => {
@@ -129,7 +105,7 @@ export default function App() {
 
   const currentDayNum = calculateCurrentDayNum();
 
-  // Web Audio API 声音合成
+  // Web Audio API 声音合成（无外部音源依赖）
   const playAlertSound = () => {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -213,7 +189,7 @@ export default function App() {
     }
   }, [nowTs, activeTimer]);
 
-  // 10 小时防呆安全锁判定
+  // 10 小时防呆锁定判定
   const getSafetyLockInfo = () => {
     if (currentPeriod !== 'evening' || lastMorningTs === 0) {
       return { isLocked: false, remainingSec: 0 };
@@ -486,3 +462,262 @@ export default function App() {
                 </div>
 
                 <button
+                  onClick={handleFinishedMeal}
+                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-95 text-white font-bold text-lg rounded-2xl shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <span>🍱</span> 我吃完饭了（开启15分钟倒计时）
+                </button>
+              </div>
+            )}
+
+            {activeTimer?.stage === 'POST_MEAL' && (
+              <div className="space-y-4 py-1">
+                <div className="inline-block bg-teal-950/80 text-teal-300 border border-teal-600/40 text-xs px-3 py-1 rounded-full">
+                  阶段 2/2：饭后消化缓冲中
+                </div>
+
+                <div className="py-2">
+                  <span className="text-5xl font-mono font-bold tracking-tight text-teal-400 drop-shadow-md">
+                    {formatSeconds(Math.max(0, Math.floor((activeTimer.targetTs - nowTs) / 1000)))}
+                  </span>
+                  <p className="text-xs text-slate-400 mt-2">饭后 15 分钟服用抗生素可减少胃部恶心感</p>
+                </div>
+
+                <button onClick={handleResetTimer} className="text-xs text-slate-400 hover:text-slate-200 underline">
+                  误触/取消倒计时
+                </button>
+              </div>
+            )}
+
+            {activeTimer?.stage === 'READY_FOR_ANTIBIOTIC' && (
+              <div className="space-y-4 py-1 animate-pulse">
+                <div className="bg-indigo-950/80 border-2 border-indigo-500/80 rounded-2xl p-4 text-indigo-200 text-sm space-y-1">
+                  <p className="text-lg font-bold text-indigo-300">💊 15 分钟已到：请服用抗生素！</p>
+                  <p className="text-xs text-indigo-200/80">请温水送服 2 种抗生素。服药后点击下方按钮完成打卡。</p>
+                </div>
+
+                <button
+                  onClick={handleConfirmDoseComplete}
+                  className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 active:scale-95 text-white font-bold text-lg rounded-2xl shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <span>✅</span> 确认已服“饭后药”（打卡完成）
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* 14 天打卡网格日历 */}
+      <section className="space-y-2.5">
+        <div className="flex justify-between items-center text-xs">
+          <h2 className="font-bold text-slate-200 flex items-center gap-1">
+            <span>📅</span> 14 天打卡日历视图
+          </h2>
+          <span className="text-slate-400">点击日期可手动补打卡</span>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1.5">
+          {Array.from({ length: 14 }).map((_, idx) => {
+            const dayNum = idx + 1;
+            const dayLog = logs[dayNum] || { morning: false, evening: false };
+            const isToday = dayNum === currentDayNum;
+
+            return (
+              <div
+                key={dayNum}
+                onClick={() => setSelectedDayModal(dayNum)}
+                className={`p-1.5 rounded-xl border text-center cursor-pointer transition-all active:scale-95 flex flex-col justify-between h-20 ${
+                  isToday
+                    ? 'bg-slate-800 border-sky-500 shadow-md shadow-sky-950'
+                    : 'bg-slate-800/60 border-slate-700/60 hover:bg-slate-800'
+                }`}
+              >
+                <div className="text-[10px] text-slate-400 font-mono flex justify-between items-center">
+                  <span>D{dayNum}</span>
+                  <span>{getDayDateLabel(dayNum)}</span>
+                </div>
+
+                <div className="space-y-1 my-auto">
+                  <div className={`text-[10px] py-0.5 rounded font-medium flex items-center justify-center gap-0.5 ${
+                    dayLog.morning 
+                      ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-600/40' 
+                      : 'bg-slate-900/60 text-slate-500'
+                  }`}>
+                    <span>早</span>
+                    <span>{dayLog.morning ? '✓' : '•'}</span>
+                  </div>
+
+                  <div className={`text-[10px] py-0.5 rounded font-medium flex items-center justify-center gap-0.5 ${
+                    dayLog.evening 
+                      ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-600/40' 
+                      : 'bg-slate-900/60 text-slate-500'
+                  }`}>
+                    <span>晚</span>
+                    <span>{dayLog.evening ? '✓' : '•'}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 补打卡 Modal */}
+      {selectedDayModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-700 pb-2.5">
+              <h3 className="font-bold text-sky-400">
+                第 {selectedDayModal} 天打卡记录 ({getDayDateLabel(selectedDayModal)})
+              </h3>
+              <button onClick={() => setSelectedDayModal(null)} className="text-slate-400 hover:text-slate-200 text-sm font-bold">
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center bg-slate-900/60 p-3 rounded-2xl border border-slate-700">
+                <div>
+                  <span className="text-sm font-medium text-slate-200">🌅 早餐服药</span>
+                  <span className="text-xs block text-slate-400">
+                    {logs[selectedDayModal]?.morningTime ? `完成于 ${logs[selectedDayModal].morningTime}` : '未完成'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleToggleLogSlot(selectedDayModal, 'morning')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    logs[selectedDayModal]?.morning
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  {logs[selectedDayModal]?.morning ? '已完成 (撤销)' : '标记完成'}
+                </button>
+              </div>
+
+              <div className="flex justify-between items-center bg-slate-900/60 p-3 rounded-2xl border border-slate-700">
+                <div>
+                  <span className="text-sm font-medium text-slate-200">🌙 晚餐服药</span>
+                  <span className="text-xs block text-slate-400">
+                    {logs[selectedDayModal]?.eveningTime ? `完成于 ${logs[selectedDayModal].eveningTime}` : '未完成'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleToggleLogSlot(selectedDayModal, 'evening')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    logs[selectedDayModal]?.evening
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  {logs[selectedDayModal]?.evening ? '已完成 (撤销)' : '标记完成'}
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedDayModal(null)}
+              className="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-xl"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 解除安全锁警告 Modal */}
+      {showEmergencyUnlockModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 border border-amber-600/80 rounded-3xl p-5 w-full max-w-xs space-y-4 text-center shadow-2xl">
+            <div className="text-3xl">⚠️</div>
+            <h3 className="font-bold text-amber-400">解除间隔安全锁警告</h3>
+            <p className="text-xs text-slate-300 text-left leading-relaxed">
+              提前服用第二次抗生素可能导致血药浓度过高或剧烈消化道反应。请仅在跨时区、作息倒班等极特殊情况下解除。
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setShowEmergencyUnlockModal(false)}
+                className="flex-1 py-2.5 bg-slate-700 text-slate-300 text-xs font-bold rounded-xl"
+              >
+                保持锁定
+              </button>
+              <button
+                onClick={() => {
+                  setLastMorningTs(0);
+                  setShowEmergencyUnlockModal(false);
+                }}
+                className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl"
+              >
+                强制解锁
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 设置与说明 Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-700 pb-2.5">
+              <h3 className="font-bold text-sky-400">应用设置与疗程说明</h3>
+              <button onClick={() => setShowSettingsModal(false)} className="text-slate-400 hover:text-slate-200 text-sm font-bold">
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-1.5 text-xs text-left">
+              <label className="font-semibold text-slate-300">疗程开始日期：</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-slate-100 font-mono"
+              />
+            </div>
+
+            <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-700/80 text-left text-xs space-y-2 text-slate-300 leading-relaxed">
+              <p className="font-bold text-sky-300">💡 标准四联疗法提示：</p>
+              <p>1. <strong>饭前药 (PPI+铋剂)：</strong> 饭前30分钟服用，抑酸并保护胃黏膜屏障。</p>
+              <p>2. <strong>饭后药 (2种抗生素)：</strong> 饭后15-30分钟服用，缓冲消化并降低胃肠刺激。</p>
+              <p>3. <strong>严禁饮酒：</strong> 服药期间及停药一周内严禁接触任何酒精。</p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={requestNotification}
+                className="w-full py-2.5 bg-sky-700 hover:bg-sky-600 text-white text-xs font-bold rounded-xl"
+              >
+                重新申请系统提醒权限
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm('警告：这将会清空所有历史打卡记录。确定继续吗？')) {
+                    localStorage.clear();
+                    setLogs(createInitialLogs());
+                    setLastMorningTs(0);
+                    setActiveTimer(null);
+                    setStartDate(new Date().toISOString().split('T')[0]);
+                    setShowSettingsModal(false);
+                  }
+                }}
+                className="w-full py-2.5 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-700/50 text-xs font-bold rounded-xl"
+              >
+                重置所有打卡数据
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              className="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-xl"
+            >
+              返回主界面
+            </button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
