@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta 
+    name="viewport" 
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+
+  <title>幽门螺杆菌四联治疗打卡助手</title>
+
+  <link rel="manifest" href="/chiyao/manifest.json" />
+
+  <meta name="theme-color" content="#0284c7" />
+
+  <meta 
+    name="apple-mobile-web-app-capable" 
+    content="yes"
+  />
+
+  <meta 
+    name="apple-mobile-web-app-status-bar-style" 
+    content="black-translucent"
+  />
+
+  <meta 
+    name="apple-mobile-web-app-title" 
+    content="HP帮打卡"
+  />
+
+  <meta 
+    name="description" 
+    content="幽门螺杆菌14天四联疗法专用科学服药倒计时与打卡PWA工具"
+  />
+
+  <script type="module" crossorigin src="/chiyao/assets/index-CPd_t0X2.js"></script>
+  <link rel="stylesheet" crossorigin href="/chiyao/assets/index-DXH0T0-R.css">
+<link rel="manifest" href="/chiyao/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/chiyao/registerSW.js"></script></head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased select-none">
+
+  <div id="root"></div>
+
+
+  <!-- React入口 -->
+
+
+  <!-- PWA Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+
+        navigator.serviceWorker.register('/chiyao/sw.js')
+
+          .then(reg => {
+            console.log(
+              '[PWA] Service Worker 注册成功:',
+              reg.scope
+            );
+          })
+
+          .catch(err => {
+            console.error(
+              '[PWA] Service Worker 注册失败:',
+              err
+            );
+          });
+
+      });
+    }
+  </script>
+
+
+</body>
+</html>
