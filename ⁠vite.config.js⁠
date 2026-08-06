@@ -3,6 +3,5 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // 显式配置 GitHub Pages 仓库路径
   base: '/CHIYAO/'
 });
