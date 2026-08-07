@@ -397,9 +397,9 @@ export default function App() {
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     if (isIOS) {
-      // iOS：打开仓库托管的真实 .ics 网址（Safari 原生识别日历，
-      // 100% 弹出「添加到日历」——这是 iOS 最可靠的导入方式）
-      window.location.href = 'https://yyc18836355073-svg.github.io/chiyao/reminder.ics';
+      // iOS：用 webcal:// 订阅协议（iOS 日历原生支持，自动同步 + 后台提醒）。
+      // 注意：webcal:// 实际映射到 https://，Safari 会弹出「订阅日历」确认。
+      window.location.href = 'webcal://yyc18836355073-svg.github.io/chiyao/reminder.ics';
     } else {
       // 桌面浏览器：blob 下载
       const blob = new Blob(['\uFEFF' + icsContent], { type: 'text/calendar;charset=utf-8' });
@@ -956,7 +956,7 @@ export default function App() {
                 📅 生成并下载14天日历提醒(.ics)
               </button>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                当前提醒时间：早 08:30（饭前）/ 09:30（饭后）、晚 19:30 / 20:30。点按钮后 Safari 打开日历文件 → 点「添加到日历」。如需改时间，告诉我即可重新生成。
+                当前提醒时间：早 08:30（饭前）/ 09:30（饭后）、晚 19:30 / 20:30。点按钮后 iOS 会弹出「订阅日历」→ 确认后自动同步提醒。如需改时间，告诉我即可重新生成。
               </p>
             </div>
 
