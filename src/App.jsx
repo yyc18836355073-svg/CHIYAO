@@ -31,9 +31,15 @@ const createInitialLogs = () => {
   return logs;
 };
 
+// 本地时区日期 YYYY-MM-DD（避免 toISOString 的 UTC 偏移导致日期差一天）
+const getLocalDateStr = (d = new Date()) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 export default function App() {
   const [startDate, setStartDate] = useState(() => {
-    return localStorage.getItem(STORAGE_KEYS.START_DATE) || new Date().toISOString().split('T')[0];
+    return localStorage.getItem(STORAGE_KEYS.START_DATE) || getLocalDateStr();
   });
 
   const [logs, setLogs] = useState(() => {
@@ -849,7 +855,7 @@ export default function App() {
                     setLastMorningTs(0);
                     setActiveTimer(null);
                     setMealTimes(DEFAULT_MEAL_TIMES);
-                    setStartDate(new Date().toISOString().split('T')[0]);
+                    setStartDate(getLocalDateStr());
                     setShowSettingsModal(false);
                   }
                 }}
