@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 
 // 本地存储 KEY 定义
 const STORAGE_KEYS = {
@@ -848,6 +848,7 @@ export default function App() {
                     setLogs(createInitialLogs());
                     setLastMorningTs(0);
                     setActiveTimer(null);
+                    setMealTimes(DEFAULT_MEAL_TIMES);
                     setStartDate(new Date().toISOString().split('T')[0]);
                     setShowSettingsModal(false);
                   }
