@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 
 // 本地存储 KEY 定义
 const STORAGE_KEYS = {
@@ -72,6 +72,8 @@ export default function App() {
   const [selectedDayModal, setSelectedDayModal] = useState(null);
   const [showEmergencyUnlockModal, setShowEmergencyUnlockModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushStatus, setPushStatus] = useState('');
 
   const alertTriggeredRef = useRef(false);
 
@@ -421,6 +423,109 @@ export default function App() {
     const d = new Date(startDate + 'T00:00:00');
     d.setDate(d.getDate() + (dayIndex - 1));
     return `${d.getMonth() + 1}/${d.getDate()}`;
+  };
+
+  // ===== Web Push 推送订阅（方案B）=====
+  const PUSH_WORKER_URL = 'https://hp-push.hp-push.workers.dev';
+  const VAPID_PUBLIC_KEY = 'BCYeJp0lutF8T6zM7_mjDrrG0nMGorr40WfUSv8y-4SOs_jiUe_Oh7sR6etZNI_xhUEQiEWyUuNYmrykOuGgK3E';
+
+  const urlBase64ToUint8Array = (base64String) => {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  const checkPushStatus = async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setPushEnabled(false);
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const subscription = await reg.pushManager.getSubscription();
+      setPushEnabled(!!subscription);
+    } catch (e) {
+      console.warn('查询推送状态失败:', e);
+      setPushEnabled(false);
+    }
+  };
+
+  useEffect(() => {
+    if (document.readyState === 'complete') {
+      checkPushStatus();
+    } else {
+      window.addEventListener('load', checkPushStatus);
+      return () => window.removeEventListener('load', checkPushStatus);
+    }
+  }, []);
+
+  const handleEnablePush = async () => {
+    setPushStatus('正在请求通知权限...');
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setPushStatus('⚠️ 当前浏览器不支持推送通知（需 iOS 16.4+ 且添加到主屏幕）');
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setPushStatus('❌ 未获得通知权限，请在系统设置中允许');
+        setNotificationGranted(false);
+        return;
+      }
+      setNotificationGranted(true);
+
+      const reg = await navigator.serviceWorker.ready;
+      let subscription = await reg.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
+
+      // 保存订阅到推送服务
+      const resp = await fetch(`${PUSH_WORKER_URL}/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription),
+      });
+      const result = await resp.json().catch(() => ({}));
+      if (resp.ok && result.ok) {
+        setPushEnabled(true);
+        setPushStatus('✅ 推送提醒已开启！到点会自动通知（锁屏/后台都有效）');
+      } else {
+        setPushStatus('⚠️ 订阅已创建，但保存失败，请检查网络后重试');
+      }
+    } catch (e) {
+      console.error('开启推送失败:', e);
+      setPushStatus('⚠️ 开启失败：' + (e && e.message ? e.message : '未知错误'));
+    }
+  };
+
+  const handleDisablePush = async () => {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const subscription = await reg.pushManager.getSubscription();
+      if (subscription) {
+        await fetch(`${PUSH_WORKER_URL}/unsubscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        }).catch((err) => console.warn('远端退订失败:', err));
+        await subscription.unsubscribe();
+      }
+      setPushEnabled(false);
+      setPushStatus('已关闭推送提醒');
+    } catch (e) {
+      console.error('关闭推送失败:', e);
+      setPushStatus('⚠️ 关闭失败：' + (e && e.message ? e.message : '未知错误'));
+    }
   };
 
   return (
@@ -792,6 +897,33 @@ export default function App() {
                 onChange={(e) => setStartDate(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-slate-100 font-mono"
               />
+            </div>
+
+            <div className="space-y-2 text-left">
+              <div className="space-y-1.5">
+                <label className="font-semibold text-slate-300 text-xs">🔔 后台推送提醒（推荐）：</label>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  开启后每天 08:30 / 09:30 / 19:30 / 20:30 自动推送通知，锁屏/后台也有效，无需导入日历。
+                </p>
+                {pushEnabled ? (
+                  <button
+                    onClick={handleDisablePush}
+                    className="w-full py-2.5 bg-rose-900/80 hover:bg-rose-800 text-rose-200 border border-rose-700/50 text-xs font-bold rounded-xl"
+                  >
+                    🔕 关闭后台推送提醒
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleEnablePush}
+                    className="w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl"
+                  >
+                    🔔 开启后台推送提醒
+                  </button>
+                )}
+                {pushStatus && (
+                  <p className="text-[11px] text-slate-300 leading-relaxed">{pushStatus}</p>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2 text-left">
