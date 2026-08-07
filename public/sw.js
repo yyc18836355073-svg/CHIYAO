@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hp-pwa-v1.0.0';
+const CACHE_NAME = 'hp-pwa-v1.1.0';
 
 const PRECACHE_ASSETS = [
   './',
@@ -30,6 +30,42 @@ self.addEventListener('activate', (event) => {
     })
   );
   self.clients.claim();
+});
+
+// ===== Web Push 通知处理 =====
+self.addEventListener('push', (event) => {
+  let data = { title: 'HP服药打卡', body: '该吃药了！', tag: 'hp-reminder' };
+  try {
+    if (event.data) {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    }
+  } catch (e) {
+    // 非 JSON 载荷，使用默认文案
+  }
+
+  const options = {
+    body: data.body,
+    icon: './pwa-192x192.png',
+    badge: './pwa-192x192.png',
+    tag: data.tag || 'hp-reminder',
+    requireInteraction: true,
+    data: { url: './' }
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow('./');
+    })
+  );
 });
 
 self.addEventListener('fetch', (event) => {
@@ -65,3 +101,4 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
