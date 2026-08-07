@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // 本地存储 KEY 定义
 const STORAGE_KEYS = {
@@ -367,7 +367,7 @@ export default function App() {
             `DTSTAMP:${dtStamp}`,
             `DTSTART:${dtStart}`,
             `DTEND:${dtEnd}`,
-            `SUMMARY:💊 第${day}天 ${slot.title}（${dateLabel}）`,
+            `SUMMARY:第${day}天 ${slot.title}（${dateLabel}）`,
             `DESCRIPTION:${slot.desc} 本提醒由HP服药打卡App生成。`,
             'BEGIN:VALARM',
             'ACTION:DISPLAY',
@@ -395,22 +395,10 @@ export default function App() {
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     if (isIOS) {
-      // iOS Safari：Web Share API 分享 .ics 文件（分享面板可选「添加到日历」/「存储到文件」）
-      try {
-        const file = new File([icsContent], 'hp-服药提醒.ics', { type: 'text/calendar' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({
-            files: [file],
-            title: '14天服药提醒日历',
-            text: '点击「添加到日历」或「存储到文件」即可导入服药提醒。'
-          }).catch(() => {});
-        } else {
-          // 旧版 iOS：用新窗口打开 data URL（用户手势触发，Safari 会识别 .ics）
-          window.open('data:text/calendar;charset=utf-8,' + encodeURIComponent(icsContent), '_blank');
-        }
-      } catch (e) {
-        window.open('data:text/calendar;charset=utf-8,' + encodeURIComponent(icsContent), '_blank');
-      }
+      // iOS：直接导航到 .ics 内容（data URL），Safari 原生识别日历
+      // 并显示事件预览，点「添加到日历」或「全部添加」即可导入。
+      const dataUrl = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsContent);
+      window.location.href = dataUrl;
     } else {
       // 桌面浏览器：blob 下载
       const blob = new Blob(['\uFEFF' + icsContent], { type: 'text/calendar;charset=utf-8' });
@@ -837,7 +825,7 @@ export default function App() {
                 📅 生成并下载14天日历提醒(.ics)
               </button>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                iOS操作：点击按钮后选择「存储到文件」或直接「添加到日历」，日历闹钟在后台/锁屏也能准时提醒。
+                iOS操作：点按钮后 Safari 会打开日历预览页 → 点「添加到日历」或「全部添加」。日历闹钟后台/锁屏也能准时提醒。
               </p>
             </div>
 
