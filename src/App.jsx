@@ -6,15 +6,6 @@ const STORAGE_KEYS = {
   LOGS: 'hp_logs_v1',
   LAST_MORNING: 'hp_last_morning_ts',
   ACTIVE_TIMER: 'hp_active_timer_v1',
-  MEAL_TIMES: 'hp_meal_times_v1',
-};
-
-// 每日服药时间默认值（可自定义）
-const DEFAULT_MEAL_TIMES = {
-  breakfastPre: '07:00',  // 早餐饭前药（PPI+铋剂）
-  breakfastPost: '07:45', // 早餐饭后药（抗生素）
-  dinnerPre: '19:00',     // 晚餐饭前药（PPI+铋剂）
-  dinnerPost: '19:45',    // 晚餐饭后药（抗生素）
 };
 
 // 默认 14 天结构初始化
@@ -55,15 +46,6 @@ export default function App() {
   const [activeTimer, setActiveTimer] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_TIMER);
     return saved ? JSON.parse(saved) : null;
-  });
-
-  const [mealTimes, setMealTimes] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.MEAL_TIMES);
-      return saved ? { ...DEFAULT_MEAL_TIMES, ...JSON.parse(saved) } : DEFAULT_MEAL_TIMES;
-    } catch (e) {
-      return DEFAULT_MEAL_TIMES;
-    }
   });
 
   const [currentPeriod, setCurrentPeriod] = useState('morning');
@@ -117,10 +99,6 @@ export default function App() {
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_TIMER);
     }
   }, [activeTimer]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.MEAL_TIMES, JSON.stringify(mealTimes));
-  }, [mealTimes]);
 
   const calculateCurrentDayNum = () => {
     const start = new Date(startDate + 'T00:00:00');
@@ -321,96 +299,6 @@ export default function App() {
         }
       };
     });
-  };
-
-  // ===== 日历提醒（方案A）：生成14天 .ics 文件 =====
-  const pad2 = (n) => String(n).padStart(2, '0');
-
-  const formatICSDate = (d) => {
-    // 本地时间 YYYYMMDDTHHMMSS（无时区后缀=浮动时间）
-    return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}T${pad2(d.getHours())}${pad2(d.getMinutes())}00`;
-  };
-
-  const generateCalendarICS = () => {
-    const icsEvents = [];
-    const start = new Date(startDate + 'T00:00:00');
-
-    const slots = [
-      { key: 'breakfastPre', title: '早餐饭前药（PPI+铋剂）', desc: '饭前30分钟服用，抑酸并保护胃黏膜屏障。' },
-      { key: 'breakfastPost', title: '早餐饭后药（抗生素）', desc: '饭后15-30分钟服用，降低胃肠刺激。' },
-      { key: 'dinnerPre', title: '晚餐饭前药（PPI+铋剂）', desc: '饭前30分钟服用，抑酸并保护胃黏膜屏障。' },
-      { key: 'dinnerPost', title: '晚餐饭后药（抗生素）', desc: '饭后15-30分钟服用，降低胃肠刺激。' },
-    ];
-
-    for (let day = 1; day <= 14; day++) {
-      const dayDate = new Date(start);
-      dayDate.setDate(dayDate.getDate() + (day - 1));
-      const dateLabel = `${dayDate.getMonth() + 1}/${dayDate.getDate()}`;
-
-      slots.forEach((slot, idx) => {
-        const timeStr = mealTimes[slot.key] || DEFAULT_MEAL_TIMES[slot.key];
-        const [h, m] = timeStr.split(':').map(Number);
-        const dtStartDate = new Date(dayDate);
-        dtStartDate.setHours(h, m, 0, 0);
-        // 事件时长 30 分钟（用时间戳计算，天然处理跨日）
-        const dtEndDate = new Date(dtStartDate.getTime() + 30 * 60 * 1000);
-        const dtStart = formatICSDate(dtStartDate);
-        const dtEnd = formatICSDate(dtEndDate);
-
-        const now = new Date();
-        const dtStamp = `${now.getUTCFullYear()}${pad2(now.getUTCMonth() + 1)}${pad2(now.getUTCDate())}T${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}${pad2(now.getUTCSeconds())}Z`;
-
-        icsEvents.push(
-          [
-            'BEGIN:VEVENT',
-            `UID:hp-day${day}-${idx}@chiyao`,
-            `DTSTAMP:${dtStamp}`,
-            `DTSTART:${dtStart}`,
-            `DTEND:${dtEnd}`,
-            `SUMMARY:第${day}天 ${slot.title}（${dateLabel}）`,
-            `DESCRIPTION:${slot.desc} 本提醒由HP服药打卡App生成。`,
-            'BEGIN:VALARM',
-            'ACTION:DISPLAY',
-            `DESCRIPTION:该吃药了：第${day}天 ${slot.title}`,
-            'TRIGGER:-PT0M',
-            'END:VALARM',
-            'END:VEVENT',
-          ].join('\r\n')
-        );
-      });
-    }
-
-    const icsContent = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//HP Chiyao//CN//',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'X-WR-CALNAME:幽门螺杆菌四联服药提醒',
-      ...icsEvents,
-      'END:VCALENDAR',
-    ].join('\r\n');
-
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-    if (isIOS) {
-      // iOS：用 Safari 新窗口打开真实 .ics 网址 → iOS 走「导入」流程
-      // （弹「全部添加」），导入的事件带闹钟（VALARM -PT5M），锁屏/后台自动提醒。
-      // 注意：iOS 对「订阅日历」不弹通知，必须用「导入」模式才有闹钟。
-      window.open('https://yyc18836355073-svg.github.io/chiyao/reminder.ics', '_blank');
-    } else {
-      // 桌面浏览器：blob 下载
-      const blob = new Blob(['\uFEFF' + icsContent], { type: 'text/calendar;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'hp-服药提醒.ics';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 3000);
-    }
   };
 
   const totalDosesDone = Object.values(logs).reduce((acc, curr) => {
@@ -795,40 +683,6 @@ export default function App() {
               />
             </div>
 
-            <div className="space-y-2 text-left">
-              <div className="space-y-1.5">
-                <label className="font-semibold text-slate-300 text-xs">每日服药时间（4次/天）：</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { key: 'breakfastPre', label: '早餐饭前药' },
-                    { key: 'breakfastPost', label: '早餐饭后药' },
-                    { key: 'dinnerPre', label: '晚餐饭前药' },
-                    { key: 'dinnerPost', label: '晚餐饭后药' },
-                  ].map((item) => (
-                    <label key={item.key} className="flex items-center justify-between gap-2 bg-slate-900 border border-slate-700 rounded-xl p-2">
-                      <span className="text-slate-400 text-xs">{item.label}</span>
-                      <input
-                        type="time"
-                        value={mealTimes[item.key]}
-                        onChange={(e) => setMealTimes(prev => ({ ...prev, [item.key]: e.target.value }))}
-                        className="bg-transparent text-slate-100 text-xs font-mono"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={generateCalendarICS}
-                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl"
-              >
-                📅 生成并下载14天日历提醒(.ics)
-              </button>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                当前提醒时间：早 08:30（饭前）/ 09:30（饭后）、晚 19:30 / 20:30。点按钮后在 Safari 打开日历 → 点「全部添加」（⚠️ 不要选「订阅」，订阅不提醒）。导入的事件带闹钟，锁屏/后台也会响，只需导入一次。
-              </p>
-            </div>
-
             <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-700/80 text-left text-xs space-y-2 text-slate-300 leading-relaxed">
               <p className="font-bold text-sky-300">💡 标准四联疗法提示：</p>
               <p>1. <strong>饭前药 (PPI+铋剂)：</strong> 饭前30分钟服用，抑酸并保护胃黏膜屏障。</p>
@@ -850,7 +704,6 @@ export default function App() {
                     setLogs(createInitialLogs());
                     setLastMorningTs(0);
                     setActiveTimer(null);
-                    setMealTimes(DEFAULT_MEAL_TIMES);
                     setStartDate(getLocalDateStr());
                     setShowSettingsModal(false);
                   }
